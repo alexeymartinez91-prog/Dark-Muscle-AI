@@ -1,0 +1,140 @@
+
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="theme-color" content="#0a0a0a">
+<title>DARK MUSCLE</title>
+<style>
+:root{--bg:#090909;--panel:#151515;--red:#ed202b;--muted:#999;--line:#292929}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:#f5f5f5;font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif}
+header{padding:24px 18px 18px;border-bottom:1px solid var(--line)}
+.logo{font-weight:950;font-size:27px;letter-spacing:1px}
+.logo span{color:var(--red)}
+header p{margin:5px 0 0;color:var(--muted);font-size:12px;letter-spacing:2px}
+main{max-width:650px;margin:auto;padding:18px 14px 40px}
+h2{font-size:19px;margin:8px 0 14px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:9px}
+.card,.panel{background:var(--panel);border:1px solid var(--line);border-radius:13px;padding:14px}
+.stat{font-size:23px;font-weight:850}
+small,.muted{color:var(--muted)}
+.stat-label{font-size:11px;color:var(--muted);margin-top:5px}
+button,select,input{font:inherit}
+button{border:0;border-radius:9px;padding:12px;background:var(--red);color:white;font-weight:750;cursor:pointer}
+button.secondary{background:#292929}
+button:active{opacity:.75}
+.actions{display:flex;gap:8px;flex-wrap:wrap;margin:13px 0 22px}
+.actions button{flex:1}
+label{display:block;color:#bbb;font-size:12px;margin:12px 0 6px}
+input,select{width:100%;padding:12px;background:#090909;border:1px solid #383838;border-radius:8px;color:white}
+.exercise{background:var(--panel);border:1px solid var(--line);border-radius:12px;padding:14px;margin:10px 0}
+.exercise-top{display:flex;justify-content:space-between;gap:8px;align-items:center}
+.exercise h3{font-size:15px;margin:0}
+.tag{color:#ff6068;font-size:11px}
+.set-head,.set-row{display:grid;grid-template-columns:30px 1fr 1fr 40px;gap:7px;align-items:center;margin-top:9px}
+.set-head{font-size:10px;color:var(--muted)}
+.set-row input{padding:9px 5px;text-align:center;min-width:0}
+.set-row button{padding:8px;background:#292929}
+.check{accent-color:var(--red);width:18px;height:18px}
+.full{width:100%;margin-top:10px}
+footer{text-align:center;color:#666;font-size:11px;margin-top:28px}
+</style>
+</head>
+<body>
+<header>
+  <div class="logo">DARK <span>MUSCLE</span></div>
+  <p>TRAIN HARD. TRACK EVERYTHING.</p>
+</header>
+<main>
+  <h2>Tu entrenamiento</h2>
+  <div class="stats">
+    <div class="card"><div class="stat" id="count">0</div><div class="stat-label">EJERCICIOS</div></div>
+    <div class="card"><div class="stat" id="done">0</div><div class="stat-label">SERIES HECHAS</div></div>
+    <div class="card"><div class="stat" id="volume">0</div><div class="stat-label">KG MOVIDOS</div></div>
+  </div>
+  <div class="actions">
+    <button onclick="newWorkout()">＋ Nuevo entreno</button>
+    <button class="secondary" onclick="addExercise()">＋ Ejercicio</button>
+  </div>
+  <div class="panel">
+    <label for="day">Día de entrenamiento</label>
+    <select id="day" onchange="changeDay()">
+      <option>Torso</option><option>Pierna</option>
+      <option>Pecho y espalda</option><option>Hombros y brazos</option>
+      <option>Personalizado</option>
+    </select>
+    <label for="date">Fecha</label>
+    <input id="date" type="date">
+  </div>
+  <h2 style="margin-top:24px">Ejercicios y series</h2>
+  <div id="exercises"></div>
+  <button class="full" onclick="addExercise()">＋ Añadir ejercicio</button>
+  <button class="full secondary" onclick="saveWorkout()">Guardar entrenamiento</button>
+  <h2 style="margin-top:26px">Último entrenamiento guardado</h2>
+  <div class="panel" id="history"><span class="muted">Todavía no hay entrenamientos guardados.</span></div>
+  <footer>DARK MUSCLE TRACKER · VERSIÓN 1.0</footer>
+</main>
+<script>
+const $=id=>document.getElementById(id);
+let exercises=[];
+const starters={
+"Torso":["Press banca","Remo con barra","Press militar","Jalón al pecho"],
+"Pierna":["Sentadilla","Prensa","Peso muerto rumano","Curl femoral"],
+"Pecho y espalda":["Press inclinado","Aperturas","Remo sentado","Jalón al pecho"],
+"Hombros y brazos":["Press hombros","Elevaciones laterales","Curl bíceps","Extensión tríceps"],
+"Personalizado":[]
+};
+function blankExercise(name){return {name,sets:Array.from({length:3},()=>({weight:"",reps:"",done:false}))}}
+function render(){
+$("exercises").innerHTML=exercises.map((e,i)=>`
+<div class="exercise">
+<div class="exercise-top"><h3>${escapeHTML(e.name)}</h3><button class="secondary" onclick="removeExercise(${i})">✕</button></div>
+<label>Nombre del ejercicio</label><input value="${escapeAttr(e.name)}" onchange="renameExercise(${i},this.value)">
+<div class="set-head"><span>Serie</span><span>KG</span><span>REPS</span><span>OK</span></div>
+${e.sets.map((s,j)=>`<div class="set-row"><span>${j+1}</span><input type="number" min="0" step="0.5" placeholder="0" value="${escapeAttr(s.weight)}" onchange="updateSet(${i},${j},'weight',this.value)"><input type="number" min="0" placeholder="0" value="${escapeAttr(s.reps)}" onchange="updateSet(${i},${j},'reps',this.value)"><input class="check" aria-label="Serie completada" type="checkbox" ${s.done?"checked":""} onchange="updateSet(${i},${j},'done',this.checked)"></div>`).join("")}
+<button class="secondary full" onclick="addSet(${i})">＋ Añadir serie</button>
+</div>`).join("");
+updateStats();
+}
+function escapeHTML(s){return String(s).replace(/[&<>"']/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]))}
+function escapeAttr(s){return escapeHTML(s)}
+function updateStats(){
+let sets=exercises.flatMap(e=>e.sets);
+$("count").textContent=exercises.length;
+$("done").textContent=sets.filter(s=>s.done).length;
+$("volume").textContent=Math.round(sets.filter(s=>s.done).reduce((n,s)=>n+(Number(s.weight)||0)*(Number(s.reps)||0),0)).toLocaleString("es-ES");
+}
+function addExercise(){let name=prompt("Nombre del ejercicio:");if(name&&name.trim()){exercises.push(blankExercise(name.trim()));render()}}
+function removeExercise(i){exercises.splice(i,1);render()}
+function renameExercise(i,v){exercises[i].name=v.trim()||"Ejercicio";render()}
+function addSet(i){exercises[i].sets.push({weight:"",reps:"",done:false});render()}
+function updateSet(i,j,key,value){exercises[i].sets[j][key]=value;updateStats();persist()}
+function changeDay(){exercises=(starters[$("day").value]||[]).map(blankExercise);render();persist()}
+function newWorkout(){if(confirm("¿Empezar un entrenamiento nuevo? Guarda antes el actual si quieres conservarlo.")){exercises=[];render();persist()}}
+function persist(){try{localStorage.setItem("dark-muscle-current",JSON.stringify({day:$("day").value,date:$("date").value,exercises}))}catch(e){}}
+function saveWorkout(){
+const record={day:$("day").value,date:$("date").value,exercises:JSON.parse(JSON.stringify(exercises)),savedAt:new Date().toLocaleString("es-ES")};
+try{
+let all=JSON.parse(localStorage.getItem("dark-muscle-history")||"[]");
+all.unshift(record);localStorage.setItem("dark-muscle-history",JSON.stringify(all.slice(0,50)));
+persist();showHistory();alert("¡Entrenamiento guardado!");
+}catch(e){alert("No se pudo guardar. Comprueba el espacio disponible del navegador.")}
+}
+function showHistory(){
+let all=[];try{all=JSON.parse(localStorage.getItem("dark-muscle-history")||"[]")}catch(e){}
+$("history").innerHTML=all.length?all.map(r=>`<div style="padding:9px 0;border-bottom:1px solid #292929"><strong>${escapeHTML(r.day)}</strong><br><small>${escapeHTML(r.date||r.savedAt)} · ${r.exercises.length} ejercicios · ${r.exercises.reduce((n,e)=>n+e.sets.filter(s=>s.done).length,0)} series completadas</small></div>`).join(""):'<span class="muted">Todavía no hay entrenamientos guardados.</span>';
+}
+function load(){
+$("date").value=new Date().toLocaleDateString("en-CA");
+try{let c=JSON.parse(localStorage.getItem("dark-muscle-current")||"null");if(c){$("day").value=c.day;$("date").value=c.date||$("date").value;exercises=c.exercises||[]}}
+catch(e){}
+if(!exercises.length)exercises=(starters[$("day").value]||[]).map(blankExercise);
+render();showHistory();
+}
+$("date").addEventListener("change",persist);
+load();
+</script>
+</body>
+</html>
